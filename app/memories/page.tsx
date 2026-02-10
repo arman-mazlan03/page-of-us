@@ -396,6 +396,14 @@ function AllMemoriesPage() {
                         ← Back to Map
                     </button>
                 </motion.div>
+
+                {/* Flip Book View */}
+                {showFlipBook && (
+                    <FlipBookView
+                        albums={albums}
+                        onClose={() => setShowFlipBook(false)}
+                    />
+                )}
             </div>
         );
     }

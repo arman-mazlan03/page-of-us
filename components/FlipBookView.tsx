@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import HTMLFlipBook from 'react-pageflip';
 
 interface Album {
@@ -37,36 +37,62 @@ export default function FlipBookView({ albums, onClose }: FlipBookViewProps) {
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
 
-    // Generate pages dynamically
-    const generatePages = () => {
-        const pages: any[] = [];
+    // Generate pages dynamically - useMemo to stabilize for useEffect
+    const pages = useMemo(() => {
+        const p: any[] = [];
 
         // 1. App Cover Page
         const totalPhotos = albums.reduce((acc, curr) => acc + curr.media.length, 0);
-        pages.push({ type: 'app-cover', totalPhotos });
+        p.push({ type: 'app-cover', totalPhotos });
 
         albums.forEach(albumData => {
             // 2. Album Intro Page
-            pages.push({ type: 'album-intro', album: albumData.album });
+            p.push({ type: 'album-intro', album: albumData.album });
 
-            // 3. Media Pages (1 per page for best display)
-            // Note: Without image dimensions, 1 per page is safest for mixed orientations
+            // 3. Media Pages (1 per page)
             albumData.media.forEach(m => {
-                pages.push({ type: 'media', data: m });
+                p.push({ type: 'media', data: m });
             });
         });
 
         // 4. Back Cover
-        pages.push({ type: 'back-cover' });
+        p.push({ type: 'back-cover' });
 
-        return pages;
-    };
-
-    const pages = generatePages();
+        return p;
+    }, [albums]);
 
     const handleFlip = (e: any) => {
         setCurrentPage(e.data);
     };
+
+    // Auto-advance logic
+    useEffect(() => {
+        if (!bookRef.current || !pages[currentPage]) return;
+
+        const currentPageData = pages[currentPage];
+        let timer: NodeJS.Timeout;
+
+        // Auto-flip for image pages
+        if (currentPageData.type === 'media') {
+            const item = currentPageData.data as Media;
+
+            if (item.fileType.startsWith('image/')) {
+                // Determine display time (3s for images)
+                timer = setTimeout(() => {
+                    // Only flip if not the last page
+                    if (currentPage < pages.length - 1) {
+                        bookRef.current.pageFlip().flipNext();
+                    }
+                }, 3000);
+            }
+            // For videos, we handle onEnded event directly in the video element
+        }
+        // Auto-flip for cover/intro pages (optional, let's keep it manual or longer delay? User asked for "if it is photos" / videos)
+        // User implied auto-flip content. Let's stick to photos/videos for now, or maybe 5s for intro?
+        // I'll leave intro/cover manual for now as they contain text to read.
+
+        return () => clearTimeout(timer);
+    }, [currentPage, pages]);
 
     return (
         <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900 z-50 flex items-center justify-center p-4">
@@ -191,25 +217,33 @@ export default function FlipBookView({ albums, onClose }: FlipBookViewProps) {
                             const item = page.data as Media;
                             return (
                                 <div key={index} className="page">
-                                    <div className="w-full h-full bg-black flex items-center justify-center relative group">
+                                    <div className="w-full h-full bg-white flex items-center justify-center relative group p-4 border border-gray-100">
                                         {/* Full size media */}
                                         {item.fileType.startsWith('image/') ? (
                                             <img
                                                 src={item.url}
                                                 alt="Memory"
-                                                className="w-full h-full object-contain"
+                                                className="w-full h-full object-contain filter drop-shadow-xl"
                                                 draggable={false}
                                             />
                                         ) : (
                                             <video
                                                 src={item.url}
                                                 controls
-                                                className="w-full h-full object-contain"
+                                                autoPlay
+                                                muted={false} // Allow audio if user wants, but autoplay might require mute. Mobile restricts autoplay.
+                                                // User wants auto-flip ON END.
+                                                onEnded={() => {
+                                                    if (currentPage < pages.length - 1) {
+                                                        bookRef.current?.pageFlip().flipNext();
+                                                    }
+                                                }}
+                                                className="w-full h-full object-contain filter drop-shadow-xl"
                                             />
                                         )}
 
                                         {/* Page Number */}
-                                        <div className="absolute bottom-4 right-4 text-white/30 text-xs">
+                                        <div className="absolute bottom-4 right-4 text-gray-400 text-xs">
                                             {index + 1}
                                         </div>
                                     </div>
@@ -247,6 +281,7 @@ export default function FlipBookView({ albums, onClose }: FlipBookViewProps) {
             <div className="absolute bottom-20 md:bottom-24 left-1/2 -translate-x-1/2 text-white/60 text-xs md:text-sm text-center">
                 <p className="hidden md:block">Use arrow keys or click edges to flip pages</p>
                 <p className="md:hidden">Swipe to flip pages</p>
+                <p className="mt-2 text-xs opacity-75">Auto-playing...</p>
             </div>
         </div>
     );
