@@ -119,11 +119,50 @@ export default function GoogleMapComponent() {
     };
 
     const deleteLocation = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this location?')) return;
+        if (!confirm('Are you sure you want to delete this location? This will also delete all albums, photos, and music associated with it.')) return;
+
         try {
+            // Step 1: Get all albums for this location
+            const albumsQuery = query(
+                collection(db, 'albums'),
+                where('locationId', '==', id)
+            );
+            const albumsSnapshot = await getDocs(albumsQuery);
+
+            // Step 2: For each album, delete all media and music
+            for (const albumDoc of albumsSnapshot.docs) {
+                const albumId = albumDoc.id;
+
+                // Delete all media for this album
+                const mediaQuery = query(
+                    collection(db, 'media'),
+                    where('albumId', '==', albumId)
+                );
+                const mediaSnapshot = await getDocs(mediaQuery);
+                const mediaDeletePromises = mediaSnapshot.docs.map(doc => deleteDoc(doc.ref));
+                await Promise.all(mediaDeletePromises);
+
+                // Delete all music for this album
+                const musicQuery = query(
+                    collection(db, 'music'),
+                    where('albumId', '==', albumId)
+                );
+                const musicSnapshot = await getDocs(musicQuery);
+                const musicDeletePromises = musicSnapshot.docs.map(doc => deleteDoc(doc.ref));
+                await Promise.all(musicDeletePromises);
+
+                // Delete the album itself
+                await deleteDoc(albumDoc.ref);
+            }
+
+            // Step 3: Delete the location
             await deleteDoc(doc(db, 'locations', id));
+
+            // Step 4: Reload and close
             await loadLocations();
             setSelectedLocation(null);
+
+            alert('Location and all associated data deleted successfully!');
         } catch (error) {
             console.error('Error deleting location:', error);
             alert('Failed to delete location. Please try again.');
