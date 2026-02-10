@@ -74,7 +74,7 @@ function AllMemoriesPage() {
 
     // Handle music playback
     useEffect(() => {
-        if (!audioRef.current || !hasStarted) return;
+        if (!audioRef.current) return;
 
         if (currentMusicIndex >= 0 && allMusic[currentMusicIndex]) {
             const audio = audioRef.current;
@@ -121,10 +121,10 @@ function AllMemoriesPage() {
                 }
             }
         }
-    }, [currentMusicIndex, allMusic, hasStarted, isPlaying]);
+    }, [currentMusicIndex, allMusic, isPlaying]);
 
     useEffect(() => {
-        if (!audioRef.current || !hasStarted) return;
+        if (!audioRef.current) return;
 
         const audio = audioRef.current;
 
@@ -140,7 +140,7 @@ function AllMemoriesPage() {
         } else if (!isPlaying && !audio.paused) {
             audio.pause();
         }
-    }, [isPlaying, hasStarted]);
+    }, [isPlaying]);
 
     const startExperience = () => {
         setHasStarted(true);
@@ -335,300 +335,292 @@ function AllMemoriesPage() {
     const totalPhotos = albums.reduce((sum, album) => sum + album.media.length, 0);
     const currentPhotoNumber = albums.slice(0, currentAlbumIndex).reduce((sum, album) => sum + album.media.length, 0) + currentMediaIndex + 1;
 
-    // Start Screen
-    if (!hasStarted) {
-        return (
-            <div className="fixed inset-0 bg-gradient-to-br from-purple-900 via-pink-900 to-rose-900 flex items-center justify-center">
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="text-center max-w-2xl px-8"
-                >
-                    <motion.div
-                        animate={{ rotate: [0, 5, -5, 0] }}
-                        transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
-                        className="text-9xl mb-8"
-                    >
-                        📖
-                    </motion.div>
-
-                    <h1 className="text-5xl font-bold text-white mb-4">
-                        All Your Memories
-                    </h1>
-
-                    <p className="text-2xl text-white/90 mb-2">
-                        Complete Collection
-                    </p>
-
-                    <p className="text-lg text-white/70 mb-8">
-                        {albums.length} {albums.length === 1 ? 'Album' : 'Albums'} • {totalPhotos} {totalPhotos === 1 ? 'Memory' : 'Memories'}
-                        {allMusic.length > 0 && ` • ${allMusic.length} ${allMusic.length === 1 ? 'Song' : 'Songs'}`}
-                    </p>
-
-                    <motion.button
-                        onClick={startExperience}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="px-12 py-5 bg-white text-purple-900 rounded-full text-xl font-bold shadow-2xl hover:shadow-white/20 transition-all"
-                    >
-                        ✨ Start Experience
-                    </motion.button>
-
-                    <motion.button
-                        onClick={() => setShowFlipBook(true)}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="mt-4 px-12 py-5 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-full text-xl font-bold shadow-2xl hover:shadow-pink-500/20 transition-all"
-                    >
-                        📖 View as Flip Book
-                    </motion.button>
-
-                    <p className="text-white/50 text-sm mt-8">
-                        Click left to go back • Click right to advance • Auto-advances every 3s
-                    </p>
-
-                    <button
-                        onClick={() => router.push('/map')}
-                        className="mt-6 text-white/60 hover:text-white transition-colors text-sm"
-                    >
-                        ← Back to Map
-                    </button>
-                </motion.div>
-
-                {/* Flip Book View */}
-                {showFlipBook && (
-                    <FlipBookView
-                        albums={albums}
-                        onClose={() => setShowFlipBook(false)}
-                        musicList={allMusic}
-                        currentSongIndex={currentMusicIndex}
-                        isPlaying={isPlaying}
-                        onPlayPause={togglePlayPause}
-                        onSongSelect={(index) => selectSong(index)}
-                    />
-                )}
-            </div>
-        );
-    }
-
+    // Unified Render Logic
     return (
-        <div className="fixed inset-0 bg-black">
-            {/* Audio Player */}
+        <>
+            {/* Audio Player - Always Rendered */}
             <audio
                 ref={audioRef}
                 onEnded={handleSongEnd}
                 className="hidden"
             />
 
-            {/* Header */}
-            <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/70 to-transparent p-6 z-10">
-                <div className="flex justify-between items-center">
-                    <div>
-                        <h1 className="text-white text-2xl font-bold">All Your Memories</h1>
-                        <p className="text-white/70 text-sm">Complete Collection</p>
-                    </div>
-                    <button
-                        onClick={() => router.push('/map')}
-                        className="text-white hover:text-gray-300 transition-colors"
-                    >
-                        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-
-            {/* Main Content */}
-            <div
-                className="w-full h-full flex items-center justify-center p-20 cursor-pointer"
-                onClick={handlePageClick}
-            >
-                <AnimatePresence mode="wait">
+            {!hasStarted ? (
+                // Welcome Screen
+                <div className="fixed inset-0 bg-gradient-to-br from-purple-900 via-pink-900 to-rose-900 flex items-center justify-center">
                     <motion.div
-                        key={`${currentAlbumIndex}-${currentMediaIndex}`}
-                        initial={{ opacity: 0, scale: 0.95 }}
+                        initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{
-                            duration: 0.4,
-                            ease: "easeInOut"
-                        }}
-                        className="relative max-w-5xl max-h-full"
+                        className="text-center max-w-2xl px-8"
                     >
-                        {/* Album Title Overlay */}
-                        <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/60 to-transparent p-6 rounded-t-2xl z-10">
-                            <h2 className="text-white text-xl font-semibold">{currentAlbum.album.title}</h2>
-                            <p className="text-white/80 text-sm">
-                                {currentAlbum.album.locationName} • {new Date(currentAlbum.album.eventDate).toLocaleDateString()}
-                            </p>
-                        </div>
+                        <motion.div
+                            animate={{ rotate: [0, 5, -5, 0] }}
+                            transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
+                            className="text-9xl mb-8"
+                        >
+                            📖
+                        </motion.div>
 
-                        {/* Media Display */}
-                        {currentMedia.fileType.startsWith('image/') ? (
-                            <img
-                                src={currentMedia.url}
-                                alt={currentMedia.fileName}
-                                className="max-w-full max-h-[75vh] object-contain rounded-2xl shadow-2xl"
-                                onLoad={() => setVideoEnded(true)}
-                            />
-                        ) : (
-                            <video
-                                ref={videoRef}
-                                src={currentMedia.url}
-                                autoPlay
-                                onEnded={handleVideoEnd}
-                                onLoadedData={() => setVideoEnded(false)}
-                                className="max-w-full max-h-[75vh] rounded-2xl shadow-2xl"
-                                onClick={(e) => e.stopPropagation()}
-                            />
-                        )}
+                        <h1 className="text-5xl font-bold text-white mb-4">
+                            All Your Memories
+                        </h1>
 
-                        {/* Photo Counter */}
-                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 rounded-b-2xl">
-                            <p className="text-white text-center text-sm">
-                                Photo {currentPhotoNumber} of {totalPhotos} • Album {currentAlbumIndex + 1} of {albums.length}
-                            </p>
-                        </div>
+                        <p className="text-2xl text-white/90 mb-2">
+                            Complete Collection
+                        </p>
+
+                        <p className="text-lg text-white/70 mb-8">
+                            {albums.length} {albums.length === 1 ? 'Album' : 'Albums'} • {totalPhotos} {totalPhotos === 1 ? 'Memory' : 'Memories'}
+                            {allMusic.length > 0 && ` • ${allMusic.length} ${allMusic.length === 1 ? 'Song' : 'Songs'}`}
+                        </p>
+
+                        <motion.button
+                            onClick={startExperience}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="px-12 py-5 bg-white text-purple-900 rounded-full text-xl font-bold shadow-2xl hover:shadow-white/20 transition-all"
+                        >
+                            ✨ Start Experience
+                        </motion.button>
+
+                        <motion.button
+                            onClick={() => {
+                                setShowFlipBook(true);
+                                setIsPlaying(true); // Auto-play music
+                            }}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="mt-4 px-12 py-5 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-full text-xl font-bold shadow-2xl hover:shadow-pink-500/20 transition-all"
+                        >
+                            📖 View as Flip Book
+                        </motion.button>
+
+                        <p className="text-white/50 text-sm mt-8">
+                            Click left to go back • Click right to advance • Auto-advances every 3s
+                        </p>
+
+                        <button
+                            onClick={() => router.push('/map')}
+                            className="mt-6 text-white/60 hover:text-white transition-colors text-sm"
+                        >
+                            ← Back to Map
+                        </button>
                     </motion.div>
-                </AnimatePresence>
-            </div>
-
-            {/* Album Navigation Buttons */}
-            {currentAlbumIndex > 0 && (
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        prevAlbum();
-                    }}
-                    className="absolute left-6 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white p-4 rounded-full transition-all z-20"
-                >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                    </svg>
-                </button>
-            )}
-
-            {currentAlbumIndex < albums.length - 1 && (
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        nextAlbum();
-                    }}
-                    className="absolute right-6 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white p-4 rounded-full transition-all z-20"
-                >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                    </svg>
-                </button>
-            )}
-
-            {/* Bottom Controls */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6">
-                <div className="max-w-4xl mx-auto">
-                    {/* Progress Indicator */}
-                    <div className="flex justify-center gap-1 mb-4">
-                        {currentAlbum.media.map((_, index) => (
-                            <div
-                                key={index}
-                                className={`h-1 rounded-full transition-all ${index === currentMediaIndex
-                                    ? 'w-8 bg-white'
-                                    : index < currentMediaIndex
-                                        ? 'w-1 bg-white/60'
-                                        : 'w-1 bg-white/30'
-                                    }`}
-                            />
-                        ))}
+                </div>
+            ) : (
+                // Main Experience
+                <div className="fixed inset-0 bg-black">
+                    {/* Header */}
+                    <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/70 to-transparent p-6 z-10">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h1 className="text-white text-2xl font-bold">All Your Memories</h1>
+                                <p className="text-white/70 text-sm">Complete Collection</p>
+                            </div>
+                            <button
+                                onClick={() => router.push('/map')}
+                                className="text-white hover:text-gray-300 transition-colors"
+                            >
+                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
 
-                    {/* Music Player */}
-                    {allMusic.length > 0 && (
-                        <div className="bg-white/10 backdrop-blur-md rounded-xl p-4">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-4 flex-1 min-w-0">
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            togglePlayPause();
-                                        }}
-                                        className="bg-white text-black p-3 rounded-full hover:bg-gray-200 transition-colors"
-                                    >
-                                        {isPlaying ? (
-                                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                                <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-                                            </svg>
-                                        ) : (
-                                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                                <path d="M8 5v14l11-7z" />
-                                            </svg>
-                                        )}
-                                    </button>
-
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-white text-sm font-medium truncate">
-                                            {currentMusicIndex >= 0 && allMusic[currentMusicIndex]
-                                                ? allMusic[currentMusicIndex].fileName.replace(/\.[^/.]+$/, '')
-                                                : 'No song selected'}
-                                        </p>
-                                        <p className="text-white/60 text-xs">
-                                            {allMusic.length} {allMusic.length === 1 ? 'song' : 'songs'} in library
-                                        </p>
-                                    </div>
+                    {/* Main Content */}
+                    <div
+                        className="w-full h-full flex items-center justify-center p-20 cursor-pointer"
+                        onClick={handlePageClick}
+                    >
+                        <AnimatePresence mode="wait">
+                            <motion.div
+                                key={`${currentAlbumIndex}-${currentMediaIndex}`}
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                transition={{
+                                    duration: 0.4,
+                                    ease: "easeInOut"
+                                }}
+                                className="relative max-w-5xl max-h-full"
+                            >
+                                {/* Album Title Overlay */}
+                                <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/60 to-transparent p-6 rounded-t-2xl z-10">
+                                    <h2 className="text-white text-xl font-semibold">{currentAlbum.album.title}</h2>
+                                    <p className="text-white/80 text-sm">
+                                        {currentAlbum.album.locationName} • {new Date(currentAlbum.album.eventDate).toLocaleDateString()}
+                                    </p>
                                 </div>
 
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setShowPlaylist(!showPlaylist);
-                                    }}
-                                    className="text-white hover:text-gray-300 transition-colors ml-4"
-                                >
-                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                                    </svg>
-                                </button>
-                            </div>
-
-                            {/* Playlist */}
-                            <AnimatePresence>
-                                {showPlaylist && (
-                                    <motion.div
-                                        initial={{ height: 0, opacity: 0 }}
-                                        animate={{ height: 'auto', opacity: 1 }}
-                                        exit={{ height: 0, opacity: 0 }}
-                                        className="mt-4 max-h-48 overflow-y-auto"
-                                    >
-                                        {allMusic.map((song, index) => (
-                                            <button
-                                                key={song.id}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    selectSong(index);
-                                                }}
-                                                className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${index === currentMusicIndex
-                                                    ? 'bg-white/20 text-white'
-                                                    : 'text-white/70 hover:bg-white/10 hover:text-white'
-                                                    }`}
-                                            >
-                                                <p className="text-sm truncate">
-                                                    {index === currentMusicIndex && '▶ '}
-                                                    {song.fileName.replace(/\.[^/.]+$/, '')}
-                                                </p>
-                                            </button>
-                                        ))}
-                                    </motion.div>
+                                {/* Media Display */}
+                                {currentMedia.fileType.startsWith('image/') ? (
+                                    <img
+                                        src={currentMedia.url}
+                                        alt={currentMedia.fileName}
+                                        className="max-w-full max-h-[75vh] object-contain rounded-2xl shadow-2xl"
+                                        onLoad={() => setVideoEnded(true)}
+                                    />
+                                ) : (
+                                    <video
+                                        ref={videoRef}
+                                        src={currentMedia.url}
+                                        autoPlay
+                                        onEnded={handleVideoEnd}
+                                        onLoadedData={() => setVideoEnded(false)}
+                                        className="max-w-full max-h-[75vh] rounded-2xl shadow-2xl"
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
                                 )}
-                            </AnimatePresence>
-                        </div>
+
+                                {/* Photo Counter */}
+                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 rounded-b-2xl">
+                                    <p className="text-white text-center text-sm">
+                                        Photo {currentPhotoNumber} of {totalPhotos} • Album {currentAlbumIndex + 1} of {albums.length}
+                                    </p>
+                                </div>
+                            </motion.div>
+                        </AnimatePresence>
+                    </div>
+
+                    {/* Album Navigation Buttons */}
+                    {currentAlbumIndex > 0 && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                prevAlbum();
+                            }}
+                            className="absolute left-6 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white p-4 rounded-full transition-all z-20"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                            </svg>
+                        </button>
                     )}
 
-                    {/* Navigation Hint */}
-                    <p className="text-white/60 text-center text-sm mt-4">
-                        Click left to go back • Click right to advance • Auto-advances every 3s
-                    </p>
-                </div>
-            </div>
+                    {currentAlbumIndex < albums.length - 1 && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                nextAlbum();
+                            }}
+                            className="absolute right-6 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white p-4 rounded-full transition-all z-20"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    )}
 
-            {/* Flip Book View */}
+                    {/* Bottom Controls */}
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6">
+                        <div className="max-w-4xl mx-auto">
+                            {/* Progress Indicator */}
+                            <div className="flex justify-center gap-1 mb-4">
+                                {currentAlbum.media.map((_, index) => (
+                                    <div
+                                        key={index}
+                                        className={`h-1 rounded-full transition-all ${index === currentMediaIndex
+                                            ? 'w-8 bg-white'
+                                            : index < currentMediaIndex
+                                                ? 'w-1 bg-white/60'
+                                                : 'w-1 bg-white/30'
+                                            }`}
+                                    />
+                                ))}
+                            </div>
+
+                            {/* Music Player */}
+                            {allMusic.length > 0 && (
+                                <div className="bg-white/10 backdrop-blur-md rounded-xl p-4">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    togglePlayPause();
+                                                }}
+                                                className="bg-white text-black p-3 rounded-full hover:bg-gray-200 transition-colors"
+                                            >
+                                                {isPlaying ? (
+                                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                                        <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                                                    </svg>
+                                                ) : (
+                                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                                        <path d="M8 5v14l11-7z" />
+                                                    </svg>
+                                                )}
+                                            </button>
+
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-white text-sm font-medium truncate">
+                                                    {currentMusicIndex >= 0 && allMusic[currentMusicIndex]
+                                                        ? allMusic[currentMusicIndex].fileName.replace(/\.[^/.]+$/, '')
+                                                        : 'No song selected'}
+                                                </p>
+                                                <p className="text-white/60 text-xs">
+                                                    {allMusic.length} {allMusic.length === 1 ? 'song' : 'songs'} in library
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setShowPlaylist(!showPlaylist);
+                                            }}
+                                            className="text-white hover:text-gray-300 transition-colors ml-4"
+                                        >
+                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
+
+                                    {/* Playlist */}
+                                    <AnimatePresence>
+                                        {showPlaylist && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                className="mt-4 max-h-48 overflow-y-auto"
+                                            >
+                                                {allMusic.map((song, index) => (
+                                                    <button
+                                                        key={song.id}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            selectSong(index);
+                                                        }}
+                                                        className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${index === currentMusicIndex
+                                                            ? 'bg-white/20 text-white'
+                                                            : 'text-white/70 hover:bg-white/10 hover:text-white'
+                                                            }`}
+                                                    >
+                                                        <p className="text-sm truncate">
+                                                            {index === currentMusicIndex && '▶ '}
+                                                            {song.fileName.replace(/\.[^/.]+$/, '')}
+                                                        </p>
+                                                    </button>
+                                                ))}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            )}
+
+                            {/* Navigation Hint */}
+                            <p className="text-white/60 text-center text-sm mt-4">
+                                Click left to go back • Click right to advance • Auto-advances every 3s
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Flip Book View - Lifted Out */}
             {showFlipBook && (
                 <FlipBookView
                     albums={albums}
@@ -640,7 +632,7 @@ function AllMemoriesPage() {
                     onSongSelect={(index) => selectSong(index)}
                 />
             )}
-        </div>
+        </>
     );
 }
 
