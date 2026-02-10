@@ -153,10 +153,9 @@ function AllMemoriesPage() {
         try {
             setIsLoading(true);
 
-            // Get all albums for this user, sorted by event date
+            // Get all albums, sorted by event date (Shared View)
             const albumsQuery = query(
                 collection(db, 'albums'),
-                where('userId', '==', user.uid),
                 orderBy('eventDate', 'asc')
             );
             const albumsSnapshot = await getDocs(albumsQuery);
@@ -184,10 +183,9 @@ function AllMemoriesPage() {
                 }
             }
 
-            // Get ALL music for this user (global music library)
+            // Get ALL music (global shared library)
             const musicQuery = query(
-                collection(db, 'music'),
-                where('userId', '==', user.uid)
+                collection(db, 'music')
             );
             const musicSnapshot = await getDocs(musicQuery);
             const musicList: Music[] = [];
@@ -402,6 +400,11 @@ function AllMemoriesPage() {
                     <FlipBookView
                         albums={albums}
                         onClose={() => setShowFlipBook(false)}
+                        musicList={allMusic}
+                        currentSongIndex={currentMusicIndex}
+                        isPlaying={isPlaying}
+                        onPlayPause={togglePlayPause}
+                        onSongSelect={(index) => selectSong(index)}
                     />
                 )}
             </div>
@@ -541,7 +544,7 @@ function AllMemoriesPage() {
                     {allMusic.length > 0 && (
                         <div className="bg-white/10 backdrop-blur-md rounded-xl p-4">
                             <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-4 flex-1">
+                                <div className="flex items-center gap-4 flex-1 min-w-0">
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
@@ -560,7 +563,7 @@ function AllMemoriesPage() {
                                         )}
                                     </button>
 
-                                    <div className="flex-1">
+                                    <div className="flex-1 min-w-0">
                                         <p className="text-white text-sm font-medium truncate">
                                             {currentMusicIndex >= 0 && allMusic[currentMusicIndex]
                                                 ? allMusic[currentMusicIndex].fileName.replace(/\.[^/.]+$/, '')
@@ -630,6 +633,11 @@ function AllMemoriesPage() {
                 <FlipBookView
                     albums={albums}
                     onClose={() => setShowFlipBook(false)}
+                    musicList={allMusic}
+                    currentSongIndex={currentMusicIndex}
+                    isPlaying={isPlaying}
+                    onPlayPause={togglePlayPause}
+                    onSongSelect={(index) => selectSong(index)}
                 />
             )}
         </div>

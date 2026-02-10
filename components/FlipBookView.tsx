@@ -27,15 +27,37 @@ interface AlbumWithMedia {
     media: Media[];
 }
 
+interface Music {
+    id: string;
+    userId: string;
+    fileName: string;
+    url: string;
+    createdAt: string;
+}
+
 interface FlipBookViewProps {
     albums: AlbumWithMedia[];
     onClose: () => void;
+    musicList?: Music[];
+    currentSongIndex?: number;
+    isPlaying?: boolean;
+    onPlayPause?: () => void;
+    onSongSelect?: (index: number) => void;
 }
 
-export default function FlipBookView({ albums, onClose }: FlipBookViewProps) {
+export default function FlipBookView({
+    albums,
+    onClose,
+    musicList = [],
+    currentSongIndex = -1,
+    isPlaying = false,
+    onPlayPause,
+    onSongSelect
+}: FlipBookViewProps) {
     const bookRef = useRef<any>(null);
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
+    const [showPlaylist, setShowPlaylist] = useState(false);
 
     // Generate pages dynamically - useMemo to stabilize for useEffect
     const pages = useMemo(() => {
@@ -104,6 +126,69 @@ export default function FlipBookView({ albums, onClose }: FlipBookViewProps) {
             >
                 ✕
             </button>
+
+            {/* Music Player Overlay - Non-intrusive */}
+            {musicList.length > 0 && onPlayPause && (
+                <div className="absolute top-4 left-4 md:top-8 md:left-8 z-30 max-w-[200px] md:max-w-xs">
+                    <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 shadow-lg border border-white/10 transition-all hover:bg-white/20">
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={onPlayPause}
+                                className="bg-white text-black p-2 rounded-full hover:bg-gray-200 transition-colors shrink-0"
+                            >
+                                {isPlaying ? (
+                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                                    </svg>
+                                ) : (
+                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M8 5v14l11-7z" />
+                                    </svg>
+                                )}
+                            </button>
+
+                            <div className="flex-1 min-w-0">
+                                <p className="text-white text-xs font-medium truncate">
+                                    {currentSongIndex >= 0 && musicList[currentSongIndex]
+                                        ? musicList[currentSongIndex].fileName.replace(/\.[^/.]+$/, '')
+                                        : 'Select song'}
+                                </p>
+                            </div>
+
+                            <button
+                                onClick={() => setShowPlaylist(!showPlaylist)}
+                                className="text-white/80 hover:text-white transition-colors shrink-0"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Playlist Dropdown */}
+                        {showPlaylist && (
+                            <div className="mt-2 max-h-40 overflow-y-auto custom-scrollbar bg-black/40 rounded-lg p-1">
+                                {musicList.map((song, index) => (
+                                    <button
+                                        key={song.id}
+                                        onClick={() => {
+                                            if (onSongSelect) onSongSelect(index);
+                                            setShowPlaylist(false);
+                                        }}
+                                        className={`w-full text-left px-2 py-1.5 rounded text-xs truncate transition-colors ${index === currentSongIndex
+                                                ? 'bg-white/20 text-white font-medium'
+                                                : 'text-white/70 hover:bg-white/10 hover:text-white'
+                                            }`}
+                                    >
+                                        {index === currentSongIndex && '▶ '}
+                                        {song.fileName.replace(/\.[^/.]+$/, '')}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
 
             {/* Navigation Buttons */}
             <button
