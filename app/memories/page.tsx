@@ -7,6 +7,8 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { useAuth } from '@/contexts/AuthContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import FlipBookView from '@/components/FlipBookView';
+
 
 interface Album {
     id: string;
@@ -53,8 +55,10 @@ function AllMemoriesPage() {
     const [currentMusicIndex, setCurrentMusicIndex] = useState(-1);
     const [showPlaylist, setShowPlaylist] = useState(false);
     const [videoEnded, setVideoEnded] = useState(true);
+    const [showFlipBook, setShowFlipBook] = useState(false);
     const audioRef = useRef<HTMLAudioElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
+
 
     useEffect(() => {
         loadAllMemories();
@@ -372,6 +376,15 @@ function AllMemoriesPage() {
                         ✨ Start Experience
                     </motion.button>
 
+                    <motion.button
+                        onClick={() => setShowFlipBook(true)}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="mt-4 px-12 py-5 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-full text-xl font-bold shadow-2xl hover:shadow-pink-500/20 transition-all"
+                    >
+                        📖 View as Flip Book
+                    </motion.button>
+
                     <p className="text-white/50 text-sm mt-8">
                         Click left to go back • Click right to advance • Auto-advances every 3s
                     </p>
@@ -603,6 +616,14 @@ function AllMemoriesPage() {
                     </p>
                 </div>
             </div>
+
+            {/* Flip Book View */}
+            {showFlipBook && (
+                <FlipBookView
+                    albums={albums}
+                    onClose={() => setShowFlipBook(false)}
+                />
+            )}
         </div>
     );
 }

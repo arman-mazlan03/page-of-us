@@ -115,3 +115,52 @@ textarea:-webkit-autofill:focus {
     font-size: 28px !important;
   }
 }
+
+/* Page Flip Styles */
+.flip-book {
+  box-shadow: 0 0 40px 0 rgba(0, 0, 0, 0.7);
+  border-radius: 4px;
+}
+
+.page {
+  background-color: white;
+  color: #333;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.page img,
+.page video {
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
+/* Prevent text selection during flip */
+.flip-book * {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Page flip animation enhancements */
+.stf__parent {
+  perspective: 2000px;
+}
+
+.stf__block {
+  transform-style: preserve-3d;
+}
+
+/* Mobile page flip adjustments */
+@media (max-width: 768px) {
+  .flip-book {
+    box-shadow: 0 0 20px 0 rgba(0, 0, 0, 0.5);
+  }
+
+  .page {
+    font-size: 14px;
+  }
+}
