@@ -1,0 +1,122 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================
+    // Helper Functions
+    // ============================================
+    
+    // Check if user is authenticated
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    // Check if user owns the resource
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // Check if user is in the specified workspace
+    function isInWorkspace(workspaceId) {
+      return isSignedIn() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.workspaceId == workspaceId;
+    }
+    
+    // Get user's workspace ID
+    function getUserWorkspace() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.workspaceId;
+    }
+    
+    // ============================================
+    // Collection Rules
+    // ============================================
+    
+    // Users collection
+    match /users/{userId} {
+      // Can read own user document
+      allow read: if isSignedIn() && isOwner(userId);
+      
+      // Can create/update own user document
+      allow create, update: if isSignedIn() && isOwner(userId);
+      
+      // Cannot delete user documents
+      allow delete: if false;
+    }
+    
+    // Workspaces collection
+    match /workspaces/{workspaceId} {
+      // Can read if user is in this workspace
+      allow read: if isInWorkspace(workspaceId);
+      
+      // Cannot write (managed by application)
+      allow write: if false;
+    }
+    
+    // Locations collection
+    match /locations/{locationId} {
+      // Can read if in same workspace
+      allow read: if isSignedIn() && 
+                     isInWorkspace(resource.data.workspaceId);
+      
+      // Can create if authenticated and workspaceId matches user's workspace
+      allow create: if isSignedIn() && 
+                       request.resource.data.workspaceId == getUserWorkspace();
+      
+      // Can update/delete if in same workspace
+      allow update, delete: if isSignedIn() && 
+                               isInWorkspace(resource.data.workspaceId);
+    }
+    
+    // Albums collection
+    match /albums/{albumId} {
+      // Can read if in same workspace
+      allow read: if isSignedIn() && 
+                     isInWorkspace(resource.data.workspaceId);
+      
+      // Can create if authenticated and workspaceId matches
+      allow create: if isSignedIn() && 
+                       request.resource.data.workspaceId == getUserWorkspace();
+      
+      // Can update/delete if in same workspace
+      allow update, delete: if isSignedIn() && 
+                               isInWorkspace(resource.data.workspaceId);
+    }
+    
+    // Media collection (photos/videos)
+    match /media/{mediaId} {
+      // Can read if in same workspace
+      allow read: if isSignedIn() && 
+                     isInWorkspace(resource.data.workspaceId);
+      
+      // Can create if authenticated and workspaceId matches
+      allow create: if isSignedIn() && 
+                       request.resource.data.workspaceId == getUserWorkspace();
+      
+      // Can update/delete if in same workspace
+      allow update, delete: if isSignedIn() && 
+                               isInWorkspace(resource.data.workspaceId);
+    }
+    
+    // Music collection
+    match /music/{musicId} {
+      // Can read if in same workspace
+      allow read: if isSignedIn() && 
+                     isInWorkspace(resource.data.workspaceId);
+      
+      // Can create if authenticated and workspaceId matches
+      allow create: if isSignedIn() && 
+                       request.resource.data.workspaceId == getUserWorkspace();
+      
+      // Can update/delete if in same workspace
+      allow update, delete: if isSignedIn() && 
+                               isInWorkspace(resource.data.workspaceId);
+    }
+    
+    // ============================================
+    // Deny all other access
+    // ============================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #faf9f6;
+  --foreground: #1a1a1a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Smooth transitions */
+* {
+  transition: background-color 0.2s ease;
+}
+
+/* Input text visibility - make text dark and readable */
+input,
+textarea,
+select {
+  color: #1a1a1a !important;
+  /* Dark text for all inputs */
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af !important;
+  /* Gray placeholder text */
+  opacity: 1;
+}
+
+/* Ensure autofill text is also dark */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus {
+  -webkit-text-fill-color: #1a1a1a !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Custom map marker styles */
+.custom-marker {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.custom-marker:hover {
+  transform: scale(1.2);
+}
+
+/* Mapbox popup customization */
+.mapboxgl-popup-content {
+  border-radius: 12px;
+  padding: 0;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.mapboxgl-popup-close-button {
+  font-size: 20px;
+  padding: 8px;
+  color: #666;
+}
+
+.mapboxgl-popup-close-button:hover {
+  background-color: #f3f4f6;
+  color: #000;
+}
+
+/* Mobile touch improvements */
+@media (max-width: 768px) {
+  .mapboxgl-ctrl-group button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .custom-marker {
+    font-size: 28px !important;
+  }
+}

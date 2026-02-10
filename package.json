@@ -1,0 +1,34 @@
+{
+  "name": "page of us",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@vis.gl/react-google-maps": "^1.7.1",
+    "firebase": "^11.1.0",
+    "framer-motion": "^11.15.0",
+    "mapbox-gl": "^3.8.0",
+    "next": "^15.1.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-map-gl": "^7.1.7"
+  },
+  "devDependencies": {
+    "@types/google.maps": "^3.58.1",
+    "@types/mapbox-gl": "^3.4.1",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9",
+    "eslint-config-next": "^15.1.6",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  }
+}
