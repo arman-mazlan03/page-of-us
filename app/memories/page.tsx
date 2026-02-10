@@ -56,6 +56,7 @@ function AllMemoriesPage() {
     const [showPlaylist, setShowPlaylist] = useState(false);
     const [videoEnded, setVideoEnded] = useState(true);
     const [showFlipBook, setShowFlipBook] = useState(false);
+    const [isImageLoaded, setIsImageLoaded] = useState(false);
     const audioRef = useRef<HTMLAudioElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -63,6 +64,11 @@ function AllMemoriesPage() {
     useEffect(() => {
         loadAllMemories();
     }, [user]);
+
+    // Reset image loading state
+    useEffect(() => {
+        setIsImageLoaded(false);
+    }, [currentMediaIndex, currentAlbumIndex]);
 
     // Auto-select random song on mount (but don't play until user starts)
     useEffect(() => {
@@ -418,7 +424,7 @@ function AllMemoriesPage() {
                                 <p className="text-white/70 text-sm">Complete Collection</p>
                             </div>
                             <button
-                                onClick={() => router.push('/map')}
+                                onClick={() => setHasStarted(false)}
                                 className="text-white hover:text-gray-300 transition-colors"
                             >
                                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -430,7 +436,7 @@ function AllMemoriesPage() {
 
                     {/* Main Content */}
                     <div
-                        className="w-full h-full flex items-center justify-center p-20 cursor-pointer"
+                        className="w-full h-full flex items-center justify-center p-4 md:p-20 cursor-pointer"
                         onClick={handlePageClick}
                     >
                         <AnimatePresence mode="wait">
@@ -455,12 +461,22 @@ function AllMemoriesPage() {
 
                                 {/* Media Display */}
                                 {currentMedia.fileType.startsWith('image/') ? (
-                                    <img
-                                        src={currentMedia.url}
-                                        alt={currentMedia.fileName}
-                                        className="max-w-full max-h-[75vh] object-contain rounded-2xl shadow-2xl"
-                                        onLoad={() => setVideoEnded(true)}
-                                    />
+                                    <div className="relative w-full h-full flex items-center justify-center">
+                                        {!isImageLoaded && (
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+                                            </div>
+                                        )}
+                                        <img
+                                            src={currentMedia.url}
+                                            alt={currentMedia.fileName}
+                                            className={`max-w-full max-h-[75vh] object-contain rounded-2xl shadow-2xl transition-opacity duration-500 ${isImageLoaded ? 'opacity-100' : 'opacity-0'}`}
+                                            onLoad={() => {
+                                                setVideoEnded(true);
+                                                setIsImageLoaded(true);
+                                            }}
+                                        />
+                                    </div>
                                 ) : (
                                     <video
                                         ref={videoRef}
