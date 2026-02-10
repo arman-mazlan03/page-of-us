@@ -44,7 +44,7 @@ export default function GoogleMapComponent() {
     const [albumCount, setAlbumCount] = useState<{ [key: string]: number }>({});
     const [locationAlbums, setLocationAlbums] = useState<{ [key: string]: Album[] }>({});
     const searchInputRef = useRef<HTMLInputElement>(null);
-    const mapRef = useRef<any>(null);
+
 
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
 
@@ -278,7 +278,6 @@ export default function GoogleMapComponent() {
                         setZoom(ev.detail.zoom);
                     }}
                     className="w-full h-full"
-                    ref={mapRef}
                 >
                     {locations.map((location) => (
                         <AdvancedMarker
