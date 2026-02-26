@@ -1,15 +1,56 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 function SettingsPage() {
     const router = useRouter();
     const { user } = useAuth();
     const { workspace } = useWorkspace();
+    const [loginHistory, setLoginHistory] = useState<any[]>([]);
+    const [loadingHistory, setLoadingHistory] = useState(true);
+
+    useEffect(() => {
+        async function fetchLoginHistory() {
+            if (!user) return;
+            try {
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (userDoc.exists()) {
+                    const data = userDoc.data();
+                    // Sort by timestamp descending and take last 5
+                    const history = (data.loginHistory || [])
+                        .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                        .slice(0, 5);
+                    setLoginHistory(history);
+                }
+            } catch (error) {
+                console.error('Error fetching login history:', error);
+            } finally {
+                setLoadingHistory(false);
+            }
+        }
+
+        fetchLoginHistory();
+    }, [user]);
+
+    const formatToMalaysiaTime = (isoString: string) => {
+        return new Date(isoString).toLocaleString('en-MY', {
+            timeZone: 'Asia/Kuala_Lumpur',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true,
+        });
+    };
 
     return (
         <ProtectedRoute>
@@ -114,11 +155,58 @@ function SettingsPage() {
                         </div>
                     </motion.div>
 
-                    {/* Migration Tools */}
+                    {/* Login Activity - New Section */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2 }}
+                        className="bg-white rounded-2xl shadow-xl p-6"
+                    >
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-2xl font-bold text-gray-800">Login Activity</h2>
+                            <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded">Malaysia Time (UTC+8)</span>
+                        </div>
+
+                        {loadingHistory ? (
+                            <div className="flex justify-center p-8">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-500"></div>
+                            </div>
+                        ) : loginHistory.length > 0 ? (
+                            <div className="space-y-3">
+                                {loginHistory.map((login, index) => (
+                                    <div
+                                        key={index}
+                                        className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border-l-4 border-rose-400"
+                                    >
+                                        <div className="flex items-center space-x-3">
+                                            <div className="text-xl">🔑</div>
+                                            <div>
+                                                <p className="font-medium text-gray-800">
+                                                    {formatToMalaysiaTime(login.timestamp)}
+                                                </p>
+                                                <p className="text-xs text-gray-500 truncate max-w-[200px] md:max-w-md">
+                                                    {login.userAgent || 'Unknown Device'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {index === 0 && (
+                                            <div className="px-2 py-0.5 bg-rose-100 text-rose-700 rounded text-[10px] font-bold uppercase tracking-wider">
+                                                Current
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-gray-500 text-center py-4 italic">No login records found.</p>
+                        )}
+                    </motion.div>
+
+                    {/* Migration Tools */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
                         className="bg-white rounded-2xl shadow-xl p-6"
                     >
                         <h2 className="text-2xl font-bold text-gray-800 mb-4">Data Migration</h2>

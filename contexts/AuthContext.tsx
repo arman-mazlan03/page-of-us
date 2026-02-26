@@ -9,7 +9,7 @@ import {
     sendEmailVerification,
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 
 interface AuthContextType {
     user: User | null;
@@ -83,6 +83,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 email: user.email,
                 lastLogin: new Date().toISOString(),
                 sessionExpiry: expiry,
+                loginHistory: arrayUnion({
+                    timestamp: new Date().toISOString(),
+                    userAgent: navigator.userAgent,
+                })
             }, { merge: true });
 
             setSessionExpiry(expiry);
@@ -128,21 +132,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         setUser(firebaseUser);
                         setSessionExpiry(userData.sessionExpiry);
                     }
-                    // If no sessionExpiry or expired, but user is authenticated, create new session
-                    else if (firebaseUser.emailVerified) {
-                        // User is authenticated but session expired or missing
-                        // Create new session
-                        const expiry = Date.now() + SESSION_DURATION;
-                        await setDoc(doc(db, 'users', firebaseUser.uid), {
-                            email: firebaseUser.email,
-                            sessionExpiry: expiry,
-                            lastLogin: new Date().toISOString(),
-                        }, { merge: true });
-
-                        setUser(firebaseUser);
-                        setSessionExpiry(expiry);
-                    } else {
-                        // Email not verified - sign out
+                    else {
+                        // Session expired or missing - force log out
+                        console.log('Session strictly expired - logging out');
                         await firebaseSignOut(auth);
                         setUser(null);
                         setSessionExpiry(null);
