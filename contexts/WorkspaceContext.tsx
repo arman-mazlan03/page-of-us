@@ -5,11 +5,19 @@ import { useAuth } from './AuthContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
+interface BottleReply {
+    id: string;
+    text: string;
+    author: string;
+    createdAt: string;
+}
+
 interface Bottle {
     message: string;
     lat: number;
     lng: number;
     lastMovedAt: string;
+    replies?: BottleReply[];
 }
 
 interface Workspace {
@@ -25,6 +33,8 @@ interface WorkspaceContextType {
     isAllowedUser: boolean;
     updateBottleMessage: (message: string) => Promise<void>;
     moveBottle: (lat: number, lng: number) => Promise<void>;
+    replyToBottle: (text: string) => Promise<void>;
+    deleteBottleReply: (replyId: string) => Promise<void>;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
@@ -134,7 +144,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
                 lat: isNaN(lat) ? 5.3547 : lat,
                 lng: isNaN(lng) ? 100.3293 : lng,
                 message,
-                lastMovedAt: new Date().toISOString()
+                lastMovedAt: new Date().toISOString(),
+                replies: [] // Clear replies when a new main message is set
             };
 
             console.log('UpdateBottleMessage: saving new bottle', updatedBottle);
@@ -177,6 +188,51 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    const replyToBottle = async (text: string) => {
+        if (!workspace || !workspace.bottle || !user) return;
+        try {
+            const newReply: BottleReply = {
+                id: Math.random().toString(36).substring(7),
+                text,
+                author: user.email || 'Anonymous',
+                createdAt: new Date().toISOString()
+            };
+
+            const updatedReplies = [...(workspace.bottle.replies || []), newReply];
+            const updatedBottle = { ...workspace.bottle, replies: updatedReplies };
+
+            await setDoc(doc(db, 'workspaces', workspaceId), {
+                bottle: updatedBottle
+            }, { merge: true });
+
+            setWorkspace(prev => prev ? {
+                ...prev,
+                bottle: updatedBottle
+            } : null);
+        } catch (error) {
+            console.error('Error replying to bottle:', error);
+        }
+    };
+
+    const deleteBottleReply = async (replyId: string) => {
+        if (!workspace || !workspace.bottle) return;
+        try {
+            const updatedReplies = (workspace.bottle.replies || []).filter(r => r.id !== replyId);
+            const updatedBottle = { ...workspace.bottle, replies: updatedReplies };
+
+            await setDoc(doc(db, 'workspaces', workspaceId), {
+                bottle: updatedBottle
+            }, { merge: true });
+
+            setWorkspace(prev => prev ? {
+                ...prev,
+                bottle: updatedBottle
+            } : null);
+        } catch (error) {
+            console.error('Error deleting bottle reply:', error);
+        }
+    };
+
     return (
         <WorkspaceContext.Provider
             value={{
@@ -185,6 +241,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
                 isAllowedUser,
                 updateBottleMessage,
                 moveBottle,
+                replyToBottle,
+                deleteBottleReply,
             }}
         >
             {children}

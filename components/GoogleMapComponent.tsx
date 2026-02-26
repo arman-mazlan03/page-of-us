@@ -48,9 +48,11 @@ export default function GoogleMapComponent() {
     const [showAlbumModal, setShowAlbumModal] = useState(false);
     const [albumCount, setAlbumCount] = useState<{ [key: string]: number }>({});
     const [locationAlbums, setLocationAlbums] = useState<{ [key: string]: Album[] }>({});
-    const { workspace, moveBottle } = useWorkspace();
+    const { workspace, moveBottle, replyToBottle, deleteBottleReply } = useWorkspace();
     const [showBottleMessage, setShowBottleMessage] = useState(false);
     const [isMovingBottle, setIsMovingBottle] = useState(false);
+    const [replyText, setReplyText] = useState('');
+    const [isSubmittingReply, setIsSubmittingReply] = useState(false);
     const searchInputRef = useRef<HTMLInputElement>(null);
 
 
@@ -324,6 +326,14 @@ export default function GoogleMapComponent() {
         alert("The bottle has drifted away to a new secret location! 🌊🍾");
     };
 
+    const handleSendReply = async () => {
+        if (!replyText.trim()) return;
+        setIsSubmittingReply(true);
+        await replyToBottle(replyText.trim());
+        setReplyText('');
+        setIsSubmittingReply(false);
+    };
+
     const jumpToBottle = () => {
         if (workspace?.bottle) {
             const lat = Number(workspace.bottle.lat);
@@ -426,17 +436,25 @@ export default function GoogleMapComponent() {
                             initial={{ y: 50, opacity: 0, rotate: -2 }}
                             animate={{ y: 0, opacity: 1, rotate: 0 }}
                             exit={{ y: 50, opacity: 0, scale: 0.9 }}
-                            className="relative max-w-sm w-full bg-[#fdf6e3] p-8 shadow-[0_10px_50px_rgba(0,0,0,0.3)] border-8 border-double border-[#d3af37] rounded-sm"
+                            className="relative max-w-md w-full bg-[#fdf6e3] p-8 shadow-[0_10px_50px_rgba(0,0,0,0.3)] border-8 border-double border-[#d3af37] rounded-sm max-h-[90vh] overflow-y-auto"
                             style={{ backgroundImage: 'radial-gradient(#f3e5ab 1px, transparent 0)', backgroundSize: '20px 20px' }}
                         >
                             {/* Paper texture and elements */}
                             <div className="absolute top-0 right-0 w-16 h-16 bg-[#d3af37]/10 rounded-bl-full"></div>
 
-                            <div className="text-center space-y-6">
+                            <div className="text-center space-y-4">
                                 <div className="text-3xl mb-2">📜</div>
-                                <h4 className="font-serif text-xl font-bold text-[#5c4033] border-b-2 border-[#5c4033]/20 pb-2">
-                                    A message for you...
-                                </h4>
+                                <div className="flex justify-between items-center border-b-2 border-[#5c4033]/20 pb-2">
+                                    <h4 className="font-serif text-xl font-bold text-[#5c4033]">
+                                        A message for you...
+                                    </h4>
+                                    <button
+                                        onClick={() => setShowBottleMessage(false)}
+                                        className="text-[#5c4033]/40 hover:text-[#5c4033] transition-colors"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
 
                                 <div className="py-4">
                                     <p className="font-serif text-lg italic text-[#5c4033] leading-relaxed drop-shadow-sm">
@@ -444,7 +462,58 @@ export default function GoogleMapComponent() {
                                     </p>
                                 </div>
 
-                                <div className="pt-4">
+                                {/* Replies Section */}
+                                {(workspace?.bottle?.replies?.length || 0) > 0 && (
+                                    <div className="space-y-3 mt-4 text-left">
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#5c4033]/40 border-t border-[#5c4033]/10 pt-4">
+                                            Replies
+                                        </p>
+                                        <div className="space-y-3 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                                            {workspace?.bottle?.replies?.map((reply) => (
+                                                <div key={reply.id} className="relative group bg-[#5c4033]/5 p-3 rounded-lg border border-[#5c4033]/10">
+                                                    <p className="text-sm font-serif text-[#5c4033] break-words pr-6">
+                                                        {reply.text}
+                                                    </p>
+                                                    <div className="flex justify-between items-center mt-2">
+                                                        <span className="text-[9px] text-[#5c4033]/40">
+                                                            {reply.author.split('@')[0]} • {new Date(reply.createdAt).toLocaleDateString()}
+                                                        </span>
+                                                        <button
+                                                            onClick={() => deleteBottleReply(reply.id)}
+                                                            className="text-red-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-600"
+                                                            title="Delete reply"
+                                                        >
+                                                            🗑️
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Add Reply Section */}
+                                <div className="mt-6 pt-4 border-t border-[#5c4033]/10">
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={replyText}
+                                            onChange={(e) => setReplyText(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleSendReply()}
+                                            placeholder="Write a reply..."
+                                            className="flex-1 bg-white/50 border border-[#5c4033]/20 rounded px-3 py-2 text-sm font-serif outline-none focus:border-[#5c4033]/40 transition-colors"
+                                        />
+                                        <button
+                                            onClick={handleSendReply}
+                                            disabled={isSubmittingReply || !replyText.trim()}
+                                            className="bg-[#5c4033] text-[#fdf6e3] px-4 py-2 rounded text-sm font-bold hover:bg-[#3e2c22] transition-colors disabled:opacity-50"
+                                        >
+                                            {isSubmittingReply ? 'Sending...' : 'Reply'}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="pt-6">
                                     <button
                                         onClick={handleReadMessage}
                                         disabled={isMovingBottle}
