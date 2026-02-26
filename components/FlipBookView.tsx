@@ -83,8 +83,19 @@ export default function FlipBookView({
         return p;
     }, [albums]);
 
+    const [loadedPages, setLoadedPages] = useState<Set<number>>(new Set());
+
     const handleFlip = (e: any) => {
         setCurrentPage(e.data);
+    };
+
+    const markPageLoaded = (index: number) => {
+        setLoadedPages(prev => {
+            if (prev.has(index)) return prev;
+            const next = new Set(prev);
+            next.add(index);
+            return next;
+        });
     };
 
     // Auto-advance logic
@@ -92,6 +103,10 @@ export default function FlipBookView({
         if (!bookRef.current || !pages[currentPage]) return;
 
         const currentPageData = pages[currentPage];
+        const isLoaded = loadedPages.has(currentPage) || currentPageData.type !== 'media';
+
+        if (!isLoaded) return; // Wait until content is loaded
+
         let timer: NodeJS.Timeout;
 
         // Auto-flip for image pages
@@ -101,19 +116,35 @@ export default function FlipBookView({
             if (item.fileType.startsWith('image/')) {
                 // Determine display time (3s for images)
                 timer = setTimeout(() => {
-                    // Only flip if not the last page
                     if (currentPage < pages.length - 1) {
                         bookRef.current.pageFlip().flipNext();
                     }
                 }, 3000);
             }
-            // For videos, we handle onEnded event directly in the video element
+        } else {
+            // Auto-flip for intro/cover after 4 seconds
+            timer = setTimeout(() => {
+                if (currentPage < pages.length - 1) {
+                    bookRef.current.pageFlip().flipNext();
+                }
+            }, 4000);
         }
-        // Auto-flip for cover/intro pages (optional, let's keep it manual or longer delay? User asked for "if it is photos" / videos)
-        // User implied auto-flip content. Let's stick to photos/videos for now, or maybe 5s for intro?
-        // I'll leave intro/cover manual for now as they contain text to read.
 
         return () => clearTimeout(timer);
+    }, [currentPage, pages, loadedPages]);
+
+    // Preload next few images
+    const preloadUrls = useMemo(() => {
+        const urls: string[] = [];
+        for (let i = currentPage + 1; i <= currentPage + 3; i++) {
+            if (pages[i] && pages[i].type === 'media') {
+                const item = pages[i].data as Media;
+                if (item.fileType.startsWith('image/')) {
+                    urls.push(item.url);
+                }
+            }
+        }
+        return urls;
     }, [currentPage, pages]);
 
     return (
@@ -176,8 +207,8 @@ export default function FlipBookView({
                                             setShowPlaylist(false);
                                         }}
                                         className={`w-full text-left px-2 py-1.5 rounded text-xs truncate transition-colors ${index === currentSongIndex
-                                                ? 'bg-white/20 text-white font-medium'
-                                                : 'text-white/70 hover:bg-white/10 hover:text-white'
+                                            ? 'bg-white/20 text-white font-medium'
+                                            : 'text-white/70 hover:bg-white/10 hover:text-white'
                                             }`}
                                     >
                                         {index === currentSongIndex && '▶ '}
@@ -300,24 +331,37 @@ export default function FlipBookView({
                         // Media Page (Photo/Video)
                         if (page.type === 'media') {
                             const item = page.data as Media;
+                            const isLoaded = loadedPages.has(index);
+
                             return (
                                 <div key={index} className="page">
                                     <div className="w-full h-full bg-white flex items-center justify-center relative group p-4 border border-gray-100">
+                                        {/* Loading Indicator */}
+                                        {!isLoaded && item.fileType.startsWith('image/') && (
+                                            <div className="absolute inset-0 flex items-center justify-center z-10 bg-white">
+                                                <div className="flex flex-col items-center gap-3">
+                                                    <div className="w-10 h-10 border-4 border-rose-200 border-t-rose-500 rounded-full animate-spin"></div>
+                                                    <p className="text-rose-500 text-xs font-medium animate-pulse">Loading memory...</p>
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {/* Full size media */}
                                         {item.fileType.startsWith('image/') ? (
                                             <img
                                                 src={item.url}
                                                 alt="Memory"
-                                                className="w-full h-full object-contain filter drop-shadow-xl"
+                                                className={`w-full h-full object-contain filter drop-shadow-xl transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
                                                 draggable={false}
+                                                onLoad={() => markPageLoaded(index)}
                                             />
                                         ) : (
                                             <video
                                                 src={item.url}
                                                 controls
                                                 autoPlay
-                                                muted={false} // Allow audio if user wants, but autoplay might require mute. Mobile restricts autoplay.
-                                                // User wants auto-flip ON END.
+                                                muted={false}
+                                                onLoadedData={() => markPageLoaded(index)}
                                                 onEnded={() => {
                                                     if (currentPage < pages.length - 1) {
                                                         bookRef.current?.pageFlip().flipNext();
@@ -360,6 +404,13 @@ export default function FlipBookView({
             {/* Page Counter */}
             <div className="absolute bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm">
                 {currentPage + 1} / {pages.length}
+            </div>
+
+            {/* Preloading Hidden Container */}
+            <div className="hidden" aria-hidden="true">
+                {preloadUrls.map(url => (
+                    <img key={url} src={url} alt="preload" />
+                ))}
             </div>
 
             {/* Instructions */}
