@@ -46,6 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .filter(Boolean);
     const SESSION_DURATION = parseInt(process.env.NEXT_PUBLIC_SESSION_DURATION || '3600000'); // 1 hour
 
+    // Any session created before this timestamp is invalid (Force global logout)
+    // Set to current time to invalidate all previous sessions
+    const GLOBAL_SESSION_EPOCH = 1740607000000; // Updated Feb 27, 2026
+
     // Check if session is still valid
     const isSessionValid = () => {
         if (!sessionExpiry) return false;
@@ -83,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 email: user.email,
                 lastLogin: new Date().toISOString(),
                 sessionExpiry: expiry,
+                sessionCreatedAt: currentTime, // Track when this specific session started
                 loginHistory: arrayUnion({
                     timestamp: new Date().toISOString(),
                     userAgent: navigator.userAgent,
@@ -127,14 +132,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
                     const userData = userDoc.data();
 
-                    // If sessionExpiry exists and is valid, use it
-                    if (userData?.sessionExpiry && userData.sessionExpiry > Date.now()) {
+                    // VALID SESSION CRITERIA:
+                    // 1. sessionExpiry must exist and be in the future
+                    // 2. sessionCreatedAt must be AFTER our GLOBAL_SESSION_EPOCH
+                    const isSessionFresh = userData?.sessionCreatedAt && userData.sessionCreatedAt >= GLOBAL_SESSION_EPOCH;
+
+                    if (userData?.sessionExpiry && userData.sessionExpiry > Date.now() && isSessionFresh) {
                         setUser(firebaseUser);
                         setSessionExpiry(userData.sessionExpiry);
                     }
                     else {
-                        // Session expired or missing - force log out
-                        console.log('Session strictly expired - logging out');
+                        // Session strictly expired or globally invalidated - force log out
+                        console.log('Session invalidated (Epoch check) - logging out');
                         await firebaseSignOut(auth);
                         setUser(null);
                         setSessionExpiry(null);
