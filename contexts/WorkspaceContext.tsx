@@ -5,16 +5,26 @@ import { useAuth } from './AuthContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
+interface Bottle {
+    message: string;
+    lat: number;
+    lng: number;
+    lastMovedAt: string;
+}
+
 interface Workspace {
     id: string;
     name: string;
     allowedEmails: string[];
+    bottle?: Bottle;
 }
 
 interface WorkspaceContextType {
     workspace: Workspace | null;
     isLoading: boolean;
     isAllowedUser: boolean;
+    updateBottleMessage: (message: string) => Promise<void>;
+    moveBottle: (lat: number, lng: number) => Promise<void>;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
@@ -24,6 +34,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const [workspace, setWorkspace] = useState<Workspace | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isAllowedUser, setIsAllowedUser] = useState(false);
+
+    const workspaceId = process.env.NEXT_PUBLIC_WORKSPACE_ID || 'shared_workspace_main';
 
     useEffect(() => {
         if (user) {
@@ -43,8 +55,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             // Get allowed emails and workspace ID from environment
             const allowedEmailsStr = process.env.NEXT_PUBLIC_ALLOWED_EMAILS || '';
             const allowedEmails = allowedEmailsStr.split(',').map(email => email.trim()).filter(Boolean);
-            const workspaceId = process.env.NEXT_PUBLIC_WORKSPACE_ID || 'shared_workspace_main';
-
             // Check if user is allowed
             const userIsAllowed = allowedEmails.includes(user.email || '');
             setIsAllowedUser(userIsAllowed);
@@ -59,23 +69,33 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
             const workspaceDoc = await getDoc(doc(db, 'workspaces', workspaceId));
 
             if (workspaceDoc.exists()) {
-                // Load existing workspace
+                const data = workspaceDoc.data();
                 setWorkspace({
-                    id: workspaceDoc.id,
-                    name: workspaceDoc.data().name || 'Our Memories',
-                    allowedEmails: allowedEmails
+                    id: workspaceId,
+                    name: data.name || 'Our Memories',
+                    allowedEmails: data.allowedEmails || allowedEmails,
+                    bottle: data.bottle
                 });
             } else {
                 // Create workspace if it doesn't exist
+                const defaultBottle: Bottle = {
+                    message: "Welcome to our secret bottle! Write something for us to find.",
+                    lat: 5.3547,
+                    lng: 100.3293,
+                    lastMovedAt: new Date().toISOString()
+                };
+
                 const newWorkspace: Workspace = {
                     id: workspaceId,
                     name: 'Our Memories',
-                    allowedEmails: allowedEmails
+                    allowedEmails: allowedEmails,
+                    bottle: defaultBottle
                 };
 
                 await setDoc(doc(db, 'workspaces', workspaceId), {
                     name: newWorkspace.name,
                     allowedEmails: allowedEmails,
+                    bottle: defaultBottle,
                     createdAt: new Date().toISOString(),
                 });
 
@@ -96,12 +116,75 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    const updateBottleMessage = async (message: string) => {
+        if (!workspace) return;
+        try {
+            console.log('UpdateBottleMessage: current workspace bottle', workspace.bottle);
+            // If there's no existing bottle, provide default coordinates
+            const bottleData = workspace.bottle || {
+                lat: 5.3547, // Default Penang
+                lng: 100.3293,
+                lastMovedAt: new Date().toISOString()
+            };
+
+            const lat = Number(bottleData.lat);
+            const lng = Number(bottleData.lng);
+
+            const updatedBottle = {
+                lat: isNaN(lat) ? 5.3547 : lat,
+                lng: isNaN(lng) ? 100.3293 : lng,
+                message,
+                lastMovedAt: new Date().toISOString()
+            };
+
+            console.log('UpdateBottleMessage: saving new bottle', updatedBottle);
+
+            await setDoc(doc(db, 'workspaces', workspaceId), {
+                bottle: updatedBottle
+            }, { merge: true });
+
+            setWorkspace(prev => prev ? {
+                ...prev,
+                bottle: updatedBottle
+            } : null);
+        } catch (error) {
+            console.error('Error updating bottle message:', error);
+        }
+    };
+
+    const moveBottle = async (lat: number, lng: number) => {
+        if (!workspace) return;
+        try {
+            const updatedBottle = {
+                ...workspace.bottle,
+                lat: Number(lat),
+                lng: Number(lng),
+                lastMovedAt: new Date().toISOString()
+            } as Bottle;
+
+            console.log('MoveBottle: saving bottle at', updatedBottle.lat, updatedBottle.lng);
+
+            await setDoc(doc(db, 'workspaces', workspaceId), {
+                bottle: updatedBottle
+            }, { merge: true });
+
+            setWorkspace(prev => prev ? {
+                ...prev,
+                bottle: updatedBottle
+            } : null);
+        } catch (error) {
+            console.error('Error moving bottle:', error);
+        }
+    };
+
     return (
         <WorkspaceContext.Provider
             value={{
                 workspace,
                 isLoading,
                 isAllowedUser,
+                updateBottleMessage,
+                moveBottle,
             }}
         >
             {children}

@@ -12,9 +12,18 @@ import { db } from '@/lib/firebase';
 function SettingsPage() {
     const router = useRouter();
     const { user } = useAuth();
-    const { workspace } = useWorkspace();
+    const { workspace, updateBottleMessage } = useWorkspace();
     const [loginHistory, setLoginHistory] = useState<any[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(true);
+    const [showBottleEditor, setShowBottleEditor] = useState(false);
+    const [bottleMessage, setBottleMessage] = useState(workspace?.bottle?.message || '');
+    const [savingBottle, setSavingBottle] = useState(false);
+
+    useEffect(() => {
+        if (workspace?.bottle?.message) {
+            setBottleMessage(workspace.bottle.message);
+        }
+    }, [workspace?.bottle?.message]);
 
     useEffect(() => {
         async function fetchLoginHistory() {
@@ -207,7 +216,7 @@ function SettingsPage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.3 }}
-                        className="bg-white rounded-2xl shadow-xl p-6"
+                        className="bg-white rounded-2xl shadow-xl p-6 mb-12"
                     >
                         <h2 className="text-2xl font-bold text-gray-800 mb-4">Data Migration</h2>
 
@@ -223,6 +232,80 @@ function SettingsPage() {
                         </button>
                     </motion.div>
                 </main>
+
+                {/* Hidden Bottle Trigger - Subtle but findable */}
+                <motion.button
+                    whileHover={{ scale: 1.2, opacity: 1 }}
+                    onClick={() => setShowBottleEditor(true)}
+                    className="fixed bottom-6 right-6 text-gray-400/20 hover:text-rose-400 transition-all text-xl p-2 z-10"
+                    title="A secret spot..."
+                >
+                    🍾
+                </motion.button>
+
+                {/* Bottle Message Editor Modal */}
+                <AnimatePresence>
+                    {showBottleEditor && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                            <motion.div
+                                initial={{ scale: 0.9, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.9, opacity: 0 }}
+                                className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative overflow-hidden"
+                            >
+                                {/* Decorative elements */}
+                                <div className="absolute -top-10 -right-10 w-32 h-32 bg-rose-100 rounded-full blur-3xl opacity-50"></div>
+                                <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-purple-100 rounded-full blur-3xl opacity-50"></div>
+
+                                <div className="relative">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h3 className="text-2xl font-bold bg-gradient-to-r from-rose-500 to-purple-600 bg-clip-text text-transparent">
+                                            Secret Bottle Message
+                                        </h3>
+                                        <button
+                                            onClick={() => setShowBottleEditor(false)}
+                                            className="text-gray-400 hover:text-gray-600 transition-colors"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+
+                                    <p className="text-gray-600 text-sm mb-6">
+                                        Write a secret message for your partner. Once they find the bottle on the map and read it, the bottle will move to a new secret spot!
+                                    </p>
+
+                                    <textarea
+                                        value={bottleMessage}
+                                        onChange={(e) => setBottleMessage(e.target.value)}
+                                        placeholder="Write your secret memory or note here..."
+                                        className="w-full h-32 px-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-rose-400 focus:border-transparent outline-none resize-none text-gray-800"
+                                    />
+
+                                    <div className="mt-8 flex gap-3">
+                                        <button
+                                            onClick={() => setShowBottleEditor(false)}
+                                            className="flex-1 px-6 py-3 border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                setSavingBottle(true);
+                                                await updateBottleMessage(bottleMessage);
+                                                setSavingBottle(false);
+                                                setShowBottleEditor(false);
+                                            }}
+                                            disabled={savingBottle}
+                                            className="flex-1 px-6 py-3 bg-gradient-to-r from-rose-500 to-purple-600 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+                                        >
+                                            {savingBottle ? 'Saving...' : 'Drop Bottle 🍾'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>
             </div>
         </ProtectedRoute>
     );

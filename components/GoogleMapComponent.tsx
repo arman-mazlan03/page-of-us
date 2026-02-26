@@ -7,12 +7,17 @@ import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, deleteDoc, doc, query, where, orderBy, limit } from 'firebase/firestore';
 import { useAuth } from '@/contexts/AuthContext';
 import AlbumModal, { AlbumData } from './AlbumModal';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 declare global {
     interface Window {
         google: typeof google;
     }
 }
+
+const GOOGLE_MAPS_LIBRARIES: ("places" | "drawing" | "geometry" | "localContext" | "visualization")[] = ['places'];
 
 interface Location {
     id: string;
@@ -43,6 +48,9 @@ export default function GoogleMapComponent() {
     const [showAlbumModal, setShowAlbumModal] = useState(false);
     const [albumCount, setAlbumCount] = useState<{ [key: string]: number }>({});
     const [locationAlbums, setLocationAlbums] = useState<{ [key: string]: Album[] }>({});
+    const { workspace, moveBottle } = useWorkspace();
+    const [showBottleMessage, setShowBottleMessage] = useState(false);
+    const [isMovingBottle, setIsMovingBottle] = useState(false);
     const searchInputRef = useRef<HTMLInputElement>(null);
 
 
@@ -91,7 +99,10 @@ export default function GoogleMapComponent() {
             const querySnapshot = await getDocs(collection(db, 'locations'));
             const locs: Location[] = [];
             querySnapshot.forEach((doc) => {
-                locs.push({ id: doc.id, ...doc.data() } as Location);
+                const data = doc.data();
+                if (typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+                    locs.push({ id: doc.id, ...data } as Location);
+                }
             });
             setLocations(locs);
         } catch (error) {
@@ -106,8 +117,8 @@ export default function GoogleMapComponent() {
 
         try {
             await addDoc(collection(db, 'locations'), {
-                latitude: lat,
-                longitude: lng,
+                latitude: Number(lat),
+                longitude: Number(lng),
                 locationName,
                 createdAt: new Date().toISOString(),
             });
@@ -280,6 +291,51 @@ export default function GoogleMapComponent() {
         }
     }, [locations]);
 
+    useEffect(() => {
+        if (workspace?.bottle) {
+            console.log('GoogleMapComponent: workspace.bottle data', workspace.bottle);
+        }
+    }, [workspace?.bottle]);
+
+    const handleOpenBottle = () => {
+        setShowBottleMessage(true);
+    };
+
+    const handleReadMessage = async () => {
+        setIsMovingBottle(true);
+
+        // Ensure coordinates are numbers before math
+        const currentLat = Number(workspace?.bottle?.lat || center.lat);
+        const currentLng = Number(workspace?.bottle?.lng || center.lng);
+
+        // Random offset between -0.05 and 0.05 degrees (~5km)
+        const randomLat = (Math.random() - 0.5) * 0.1;
+        const randomLng = (Math.random() - 0.5) * 0.1;
+
+        const newLat = currentLat + randomLat;
+        const newLng = currentLng + randomLng;
+
+        console.log('Relocating bottle from', currentLat, currentLng, 'to', newLat, newLng);
+
+        await moveBottle(newLat, newLng);
+        setShowBottleMessage(false);
+        setIsMovingBottle(false);
+
+        alert("The bottle has drifted away to a new secret location! 🌊🍾");
+    };
+
+    const jumpToBottle = () => {
+        if (workspace?.bottle) {
+            const lat = Number(workspace.bottle.lat);
+            const lng = Number(workspace.bottle.lng);
+            console.log('Jumping to bottle:', lat, lng);
+            if (!isNaN(lat) && !isNaN(lng)) {
+                setCenter({ lat, lng });
+                setZoom(15);
+            }
+        }
+    };
+
     if (!apiKey) {
         return (
             <div className="flex items-center justify-center h-full bg-gray-100">
@@ -302,19 +358,22 @@ export default function GoogleMapComponent() {
 
     return (
         <div className="relative w-full h-full">
-            <APIProvider apiKey={apiKey} libraries={['places']}>
+            <APIProvider apiKey={apiKey} libraries={GOOGLE_MAPS_LIBRARIES}>
                 <Map
                     center={center}
                     zoom={zoom}
                     mapId="page-of-us-map"
                     onClick={(e) => {
-                        if (e.detail.latLng) {
+                        if (e.detail.latLng && typeof e.detail.latLng.lat === 'number') {
                             addLocation(e.detail.latLng.lat, e.detail.latLng.lng);
                         }
                     }}
                     onCameraChanged={(ev) => {
-                        setCenter(ev.detail.center);
-                        setZoom(ev.detail.zoom);
+                        setCenter({
+                            lat: Number(ev.detail.center.lat),
+                            lng: Number(ev.detail.center.lng)
+                        });
+                        setZoom(Number(ev.detail.zoom));
                     }}
                     className="w-full h-full"
                 >
@@ -330,8 +389,75 @@ export default function GoogleMapComponent() {
                             <Pin background={'#ef4444'} borderColor={'#991b1b'} glyphColor={'#fff'} />
                         </AdvancedMarker>
                     ))}
+
+                    {/* Secret Bottle Marker */}
+                    {workspace?.bottle && !isNaN(Number(workspace.bottle.lat)) && !isNaN(Number(workspace.bottle.lng)) && (
+                        <AdvancedMarker
+                            position={{
+                                lat: Number(workspace.bottle.lat),
+                                lng: Number(workspace.bottle.lng)
+                            }}
+                            onClick={handleOpenBottle}
+                        >
+                            <div className="text-2xl animate-bounce cursor-pointer hover:scale-125 transition-transform" title="A mysterious bottle...">
+                                🍾
+                            </div>
+                        </AdvancedMarker>
+                    )}
                 </Map>
             </APIProvider>
+
+            {/* Find Bottle Button */}
+            {workspace?.bottle && (
+                <button
+                    onClick={jumpToBottle}
+                    className="absolute top-56 left-4 bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-all z-10 text-xl"
+                    title="Find the mystery bottle"
+                >
+                    🔍🍾
+                </button>
+            )}
+
+            {/* Bottle Message Modal - Paper Theme */}
+            <AnimatePresence>
+                {showBottleMessage && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ y: 50, opacity: 0, rotate: -2 }}
+                            animate={{ y: 0, opacity: 1, rotate: 0 }}
+                            exit={{ y: 50, opacity: 0, scale: 0.9 }}
+                            className="relative max-w-sm w-full bg-[#fdf6e3] p-8 shadow-[0_10px_50px_rgba(0,0,0,0.3)] border-8 border-double border-[#d3af37] rounded-sm"
+                            style={{ backgroundImage: 'radial-gradient(#f3e5ab 1px, transparent 0)', backgroundSize: '20px 20px' }}
+                        >
+                            {/* Paper texture and elements */}
+                            <div className="absolute top-0 right-0 w-16 h-16 bg-[#d3af37]/10 rounded-bl-full"></div>
+
+                            <div className="text-center space-y-6">
+                                <div className="text-3xl mb-2">📜</div>
+                                <h4 className="font-serif text-xl font-bold text-[#5c4033] border-b-2 border-[#5c4033]/20 pb-2">
+                                    A message for you...
+                                </h4>
+
+                                <div className="py-4">
+                                    <p className="font-serif text-lg italic text-[#5c4033] leading-relaxed drop-shadow-sm">
+                                        "{workspace?.bottle?.message}"
+                                    </p>
+                                </div>
+
+                                <div className="pt-4">
+                                    <button
+                                        onClick={handleReadMessage}
+                                        disabled={isMovingBottle}
+                                        className="w-full py-3 bg-[#5c4033] text-[#fdf6e3] font-serif font-bold rounded shadow-md hover:bg-[#3e2c22] transition-colors disabled:opacity-50"
+                                    >
+                                        {isMovingBottle ? 'The bottle is drifting...' : 'Seal and Release 🌊'}
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
 
             {/* Search Button */}
             <button
